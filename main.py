@@ -2,7 +2,7 @@
 
 from hdrpackage.parse_omp_rtplan import BrachyPlan, PointComparison
 from hdrpackage.pyTG43 import *
-import dicom
+import pydicom
 from tabulate import tabulate
 import os
 import sys
@@ -36,10 +36,10 @@ def main():
         ['']
     ], headers=["HDR Brachytherapy Dose Check"]))
 
-    rtplan_path = _prompt_for_rtplan_path()
+    # rtplan_path = _prompt_for_rtplan_path()
     print("\nLoading RTPlan from local file...")
-
-    ds_input = dicom.read_file(rtplan_path)
+    rtplan_path =r"D:\code\TG43\brachy-hdr-tg43-check\tests\data\rtplan.dcm"
+    ds_input = pydicom.read_file(rtplan_path)
     try:
         my_plan = BrachyPlan(ds_input)
     except AttributeError:
