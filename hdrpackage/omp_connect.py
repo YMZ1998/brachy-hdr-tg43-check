@@ -1,10 +1,46 @@
+import os
+from pathlib import Path
+
 import pyodbc
+
+
+CONFIG_PATH = Path(__file__).resolve().parent / 'server_config.cfg'
+
+
+def _load_conn_string():
+    """Load the configured ODBC connection string."""
+    env_conn = os.getenv('HDR_DB_CONN_STRING', '').strip()
+    if env_conn:
+        return env_conn
+    return CONFIG_PATH.read_text(encoding='utf-8').strip()
+
+
+def _has_key(conn_string, key):
+    return (key.lower() + '=') in conn_string.lower()
+
+
+def _resolve_driver(conn_string):
+    """Ensure connection string contains a usable ODBC driver."""
+    if _has_key(conn_string, 'driver') or _has_key(conn_string, 'dsn'):
+        return conn_string
+
+    env_driver = os.getenv('HDR_DB_DRIVER', '').strip()
+    if env_driver:
+        return "Driver={%s};%s" % (env_driver, conn_string)
+
+    installed_drivers = pyodbc.drivers()
+    if installed_drivers:
+        return "Driver={%s};%s" % (installed_drivers[-1], conn_string)
+
+    raise RuntimeError(
+        'No ODBC driver configured. Please set Driver=... in '
+        'hdrpackage/server_config.cfg or set HDR_DB_DRIVER.'
+    )
 
 
 def connect_to_db():
     """Returns connection to OTP database on OTP server"""
-    with open(r'hdrpackage\\server_config.cfg', 'r') as f:
-        conn_string = f.read()
+    conn_string = _resolve_driver(_load_conn_string())
     return pyodbc.connect(conn_string)
 
 
