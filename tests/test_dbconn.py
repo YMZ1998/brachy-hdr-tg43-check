@@ -1,14 +1,15 @@
-import pyodbc
 import unittest
+
+from hdrpackage import omp_connect
+
 
 class TestDBConnection(unittest.TestCase):
 
-    def test_connection(self):
-        """Returns connection to OTP database on OTP server"""
-        with open(r'hdrpackage\\server_config.cfg', 'r') as f:
-            conn_string = f.read()
-        connection = pyodbc.connect(conn_string)
-        self.assertTrue(connection)
+    def test_database_removed(self):
+        """Database usage should be explicitly disabled."""
+        with self.assertRaises(RuntimeError):
+            omp_connect.connect_to_db()
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -7,25 +7,12 @@ class BasicTestSetupClass(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Setup to run before all tests"""
-        with open(r'tests\\tests_config.cfg', 'r') as f:
-            d = f.read()
-        test_config = {k: v for k, v in [x.split('=') for x in d.split('\n')]}
-        cls.patient_id_test = test_config['patient_id']
-        cls.case_name_test = test_config['case_name']
-        cls.plan_name_test = test_config['plan_name']
-
-        output_full_path = r'tests\\data\\rtplan.dcm'
-
-        # output_full_path
-        rt_plan_blob = get_rtplan(cls.patient_id_test,
-                                  cls.case_name_test,
-                                  cls.plan_name_test)  # return RTplan as BLOB
-
-        write_file(rt_plan_blob[0][1], output_full_path)  # save BLOB to dcm
-        ds_input = dicom.read_file(output_full_path)  # read in dcm
-
-       # ds_input = dicom.read_file(r'tests\\data\\test_data.dcm')  # read in dcm
+        test_data_path = r'tests\\data\\test_data.dcm'
+        ds_input = dicom.read_file(test_data_path)
         cls.my_plan = BrachyPlan(ds_input)
+
+        cls.patient_id_test = cls.my_plan.patient_id
+        cls.plan_name_test = cls.my_plan.plan_name
 
 
 class FirstTests(BasicTestSetupClass):
