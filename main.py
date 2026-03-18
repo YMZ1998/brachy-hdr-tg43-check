@@ -42,16 +42,9 @@ def _prompt_for_rtplan_path():
 
 
 def main():
-    """Run the TG43 dose check command line interface."""
-    print(
-        tabulate(
-            [["v0.1 VCC"], ["Enter 'quit' at any time to exit program"], [""]],
-            headers=["HDR Brachytherapy Dose Check"],
-        )
-    )
-
     print("\nLoading RTPlan from local file...")
-    rtplan_path = _prompt_for_rtplan_path()
+    # rtplan_path = _prompt_for_rtplan_path()
+    rtplan_path =r"D:\code\TG43\brachy-hdr-tg43-check\tests\data\rtplan.dcm"
     ds_input = pydicom.dcmread(rtplan_path)
     try:
         my_plan = BrachyPlan(ds_input)
