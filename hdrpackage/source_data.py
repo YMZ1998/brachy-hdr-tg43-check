@@ -1,83 +1,61 @@
+from __future__ import annotations
+
 import csv
+from dataclasses import dataclass
+from pathlib import Path
+
 import numpy as np
 
-
-def read_file(full_path):
-    """
-    Read in CSV files
-    """
-    in_file = open(full_path, "r")
-    reader = csv.reader(in_file)
-    input_data = []
-    for row in reader:
-        input_data.append(row)
-    in_file.close()
-    return input_data
+SOURCE_FILES_DIR = Path(__file__).resolve().parent / "source_files"
 
 
-def make_radial_dose(radial_dose_raw):
-    """
-    Create radial dose function from raw input data
-    """
-    r_cm = []
-    gL = []
-    for i in range(1, len(radial_dose_raw)):
-        r_cm.append(float(radial_dose_raw[i][0]))
-        gL.append(float(radial_dose_raw[i][1]))
-    return RadialDoseClass(r_cm, gL)
+@dataclass(frozen=True)
+class RadialDose:
+    """Radial dose function tabulated by radius in centimeters."""
+
+    r_cm: list[float]
+    gL: list[float]
 
 
-class RadialDoseClass:
-    """
-    Class to hold radial dose function
-    """
+@dataclass(frozen=True)
+class AnisotropyFunction:
+    """Anisotropy function tabulated by angle and radius."""
 
-    def __init__(self, r_cm, gL):
-        self.r_cm = r_cm
-        self.gL = gL
-
-
-def make_anisotropy_function(anisotropy_function_raw):
-    """
-    Create anisotropy function from raw input data
-    """
-    A = [[row for row in anisotropy_function_raw[i][0]]
-         for i in range(2, len(anisotropy_function_raw))]
-    theta = [float("".join(A[i])) for i in range(len(A))]
-    B = anisotropy_function_raw[1][1:]
-    r_cm = [float(i) for i in B]
-    C = [[row for row in anisotropy_function_raw[i][1:]]
-         for i in range(2, len(anisotropy_function_raw))]
-    F = np.zeros([len(C), len(C[0])])
-    for i in range(len(C)):
-        for j in range(len(C[i])):
-            if i != -1:
-                try:
-                    F[i][j] = float(C[i][j])
-                except ValueError:
-                    F[i][j] = None
-            elif i == -1:
-                F[i][j] = None
-    return AnisotropyFunctionClass(r_cm, theta, F)
+    r_cm: list[float]
+    theta: list[float]
+    F: np.ndarray
 
 
-class AnisotropyFunctionClass:
-    """
-    Class to hold anisotropy function
-    """
-
-    def __init__(self, r_cm, theta, F):
-        self.r_cm = r_cm
-        self.theta = theta
-        self.F = F
+def read_file(full_path: str | Path) -> list[list[str]]:
+    """Read a CSV file into a list of rows."""
+    with Path(full_path).open("r", newline="") as in_file:
+        return list(csv.reader(in_file))
 
 
-def find_nearest(array, value):
-    """
-    Find the index of the closest value in an array
-    """
-    idx = (np.abs(array - value)).argmin()
-    return array[idx]
+def read_source_file(filename: str) -> list[list[str]]:
+    """Read a bundled TG43 source data CSV file."""
+    return read_file(SOURCE_FILES_DIR / filename)
 
-if __name__ == '__main__':
-    print("Ran as script")
+
+def make_radial_dose(radial_dose_raw: list[list[str]]) -> RadialDose:
+    """Create the radial dose function from raw CSV data."""
+    values = [(float(row[0]), float(row[1])) for row in radial_dose_raw[1:]]
+    r_cm, gL = zip(*values)
+    return RadialDose(list(r_cm), list(gL))
+
+
+def make_anisotropy_function(
+    anisotropy_function_raw: list[list[str]],
+) -> AnisotropyFunction:
+    """Create the anisotropy function from raw CSV data."""
+    theta = [float(row[0]) for row in anisotropy_function_raw[2:]]
+    r_cm = [float(value) for value in anisotropy_function_raw[1][1:]]
+
+    F = np.empty((len(theta), len(r_cm)))
+    F.fill(np.nan)
+    for row_index, row in enumerate(anisotropy_function_raw[2:]):
+        for col_index, value in enumerate(row[1:]):
+            if value:
+                F[row_index, col_index] = float(value)
+
+    return AnisotropyFunction(r_cm=r_cm, theta=theta, F=F)

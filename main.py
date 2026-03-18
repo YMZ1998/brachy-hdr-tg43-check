@@ -1,17 +1,33 @@
-from hdrpackage.parse_omp_rtplan import BrachyPlan, PointComparison
-from hdrpackage.pyTG43 import *
-import pydicom
-from tabulate import tabulate
+from __future__ import annotations
+
 import os
 import sys
+
+import pydicom
 from numpy import around
+from tabulate import tabulate
+
+from hdrpackage import (
+    BrachyPlan,
+    PointComparison,
+    calculate_dose,
+    make_anisotropy_function,
+    make_radial_dose,
+    make_source_trains,
+    read_source_file,
+)
+
+RADIAL_DOSE = make_radial_dose(read_source_file("v2r_ESTRO_radialDose.csv"))
+ANISOTROPY_FUNCTION = make_anisotropy_function(
+    read_source_file("v2r_ESTRO_anisotropyFunction.csv")
+)
 
 
 def _prompt_for_rtplan_path():
     """Prompt until a valid RTPLAN file path is provided."""
     while True:
         input_path = input("Enter RTPLAN DICOM file path: ").strip()
-        if input_path.upper() == 'QUIT':
+        if input_path.upper() == "QUIT":
             sys.exit()
 
         if not input_path:
@@ -26,54 +42,57 @@ def _prompt_for_rtplan_path():
 
 
 def main():
-    """Main function for TG43 dose check."""
+    """Run the TG43 dose check command line interface."""
+    print(
+        tabulate(
+            [["v0.1 VCC"], ["Enter 'quit' at any time to exit program"], [""]],
+            headers=["HDR Brachytherapy Dose Check"],
+        )
+    )
 
-    print(tabulate([
-        ["v0.1 VCC"],
-        ["Enter 'quit' at any time to exit program"],
-        ['']
-    ], headers=["HDR Brachytherapy Dose Check"]))
-
-    # rtplan_path = _prompt_for_rtplan_path()
     print("\nLoading RTPlan from local file...")
-    rtplan_path =r"D:\code\TG43\brachy-hdr-tg43-check\tests\data\rtplan.dcm"
-    ds_input = pydicom.read_file(rtplan_path)
+    rtplan_path = _prompt_for_rtplan_path()
+    ds_input = pydicom.dcmread(rtplan_path)
     try:
         my_plan = BrachyPlan(ds_input)
     except AttributeError:
         print("Dataset could not be opened\nAre you sure it is a brachytherapy plan?")
-        sys.exit()
+        sys.exit(1)
 
     print("RTPlan loaded successfully...")
     my_source_train = make_source_trains(my_plan)
-    points_of_interest = my_plan.points
-
-    radialDose = make_radial_dose(
-        read_file(r'hdrpackage\\source_files\\v2r_ESTRO_radialDose.csv'))
-    anisotropyFunc = make_anisotropy_function(
-        read_file(r'hdrpackage\\source_files\\v2r_ESTRO_anisotropyFunction.csv'))
 
     output_table = []
-    for poi in points_of_interest:
-        my_dose = calculate_dose(my_source_train, poi, anisotropyFunc, radialDose)
+    for poi in my_plan.points:
+        my_dose = calculate_dose(
+            my_source_train,
+            poi,
+            ANISOTROPY_FUNCTION,
+            RADIAL_DOSE,
+        )
         point_compare = PointComparison(
             point_name=poi.name,
             omp_dose=poi.dose,
             pytg43_dose=my_dose,
         )
-        output_table.append([
-            poi.name,
-            around([poi.dose], decimals=2).tolist()[0],
-            around([my_dose], decimals=2).tolist()[0],
-            around([point_compare.percentage_difference], decimals=2).tolist()[0]
-        ])
+        output_table.append(
+            [
+                poi.name,
+                around([poi.dose], decimals=2).tolist()[0],
+                around([my_dose], decimals=2).tolist()[0],
+                around([point_compare.percentage_difference], decimals=2).tolist()[0],
+            ]
+        )
 
-    print("Dose check results for plan: %s" % my_plan.plan_name)
-    print("\n" + tabulate(
-        output_table,
-        headers=["Point name", "OMP dose (Gy)", "pyTG43 dose (Gy)", "% difference"]
-    ))
+    print(f"Dose check results for plan: {my_plan.plan_name}")
+    print(
+        "\n"
+        + tabulate(
+            output_table,
+            headers=["Point name", "OMP dose (Gy)", "pyTG43 dose (Gy)", "% difference"],
+        )
+    )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

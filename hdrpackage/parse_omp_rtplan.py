@@ -1,75 +1,117 @@
-"""Classes for holding parsed data from RTPlan file"""
+"""Classes for holding parsed data from an RTPlan file."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
 
 
-class BrachyPlan(object):
+class BrachyPlan:
     def __init__(self, ds):
         self.ds = ds
-        self.applicator = self.ds.ApplicationSetupSequence[0][0x300b, 0x100f].value
+        application_setup = ds.ApplicationSetupSequence[0]
+        source = ds.SourceSequence[0]
+
+        self.applicator = application_setup[0x300B, 0x100F].value
         self.points = self.get_poi()
         self.channel_numbers = self.get_channel_numbers()
         self.prescription = float(
-            ds.FractionGroupSequence[0].ReferencedBrachyApplicationSetupSequence[0].BrachyApplicationSetupDose)
+            ds.FractionGroupSequence[0]
+            .ReferencedBrachyApplicationSetupSequence[0]
+            .BrachyApplicationSetupDose
+        )
         self.treatment_model = ds.TreatmentMachineSequence[0].TreatmentMachineName
-        self.ref_air_kerma_rate = float(ds.SourceSequence[0].ReferenceAirKermaRate)
+        self.ref_air_kerma_rate = float(source.ReferenceAirKermaRate)
         self.channels = self.get_channel_dwell_times()
-        self.total_number_dwells = sum([len(i) for i in self.channels])
-        self.half_life = float(ds.SourceSequence[0].SourceIsotopeHalfLife)
+        self.total_number_dwells = sum(len(channel) for channel in self.channels)
+        self.half_life = float(source.SourceIsotopeHalfLife)
         self.patient_id = ds.PatientID
         self.plan_name = ds.RTPlanLabel
 
+    @property
+    def application_setup(self):
+        return self.ds.ApplicationSetupSequence[0]
+
     def get_channel_numbers(self):
-        return [int(x.SourceApplicatorID) for x in self.ds.ApplicationSetupSequence[0].ChannelSequence]
+        return [
+            int(channel.SourceApplicatorID)
+            for channel in self.application_setup.ChannelSequence
+        ]
 
     def get_poi(self):
-        points = []
-        for p in self.ds.DoseReferenceSequence:
-            points.append(self.Point(p))
-        return points
+        return [self.Point(point) for point in self.ds.DoseReferenceSequence]
 
     def get_channel_dwell_times(self):
         channel_dwells = []
-        for c in range(len(self.ds.ApplicationSetupSequence[0].ChannelSequence)):
-            total_channel_time = float(self.ds.ApplicationSetupSequence[0].ChannelSequence[c].ChannelTotalTime)
+        for channel in self.application_setup.ChannelSequence:
+            total_channel_time = float(channel.ChannelTotalTime)
+            control_points = channel.BrachyControlPointSequence
+            number_of_dwells = int(channel.NumberOfControlPoints / 2)
+
             dwell_weights = []
             dwells_list = []
-            number_of_dwells = int(self.ds.ApplicationSetupSequence[0].ChannelSequence[c].NumberOfControlPoints / 2)
-            for i in range(0, len(self.ds.ApplicationSetupSequence[0].ChannelSequence[c].BrachyControlPointSequence), 2):
-                d1 = float(
-                    self.ds.ApplicationSetupSequence[0].ChannelSequence[c].BrachyControlPointSequence[
-                        i].CumulativeTimeWeight)
-                d2 = float(
-                    self.ds.ApplicationSetupSequence[0].ChannelSequence[c].BrachyControlPointSequence[
-                        i + 1].CumulativeTimeWeight)
-                dwell_weights.append(d2 - d1)
-                dwells_list.append(self.ds.ApplicationSetupSequence[0].ChannelSequence[c].BrachyControlPointSequence[
-                        i])
-            dwell_times = [(total_channel_time / number_of_dwells) * x for x in dwell_weights]
-            dwells = []
-            for i in range(len(dwells_list)):
-                dwells.append(self.Dwell(dwells_list[i],dwell_times[i],dwell_weights[i]))
-            channel_dwells.append(dwells)
+            for index in range(0, len(control_points), 2):
+                start = float(control_points[index].CumulativeTimeWeight)
+                end = float(control_points[index + 1].CumulativeTimeWeight)
+                dwell_weights.append(end - start)
+                dwells_list.append(control_points[index])
+
+            dwell_times = [
+                (total_channel_time / number_of_dwells) * weight
+                for weight in dwell_weights
+            ]
+            channel_dwells.append(
+                [
+                    self.Dwell(control_sequence, dwell_time, dwell_weight)
+                    for control_sequence, dwell_time, dwell_weight in zip(
+                        dwells_list,
+                        dwell_times,
+                        dwell_weights,
+                    )
+                ]
+            )
         return channel_dwells
 
-    class Point(object):
+    @dataclass(frozen=True)
+    class Point:
+        name: str
+        coords: list[float]
+        dose: float
+
         def __init__(self, ds_sequence):
-            self.name = ds_sequence.DoseReferenceDescription
-            self.coords = [float(x) for x in ds_sequence.DoseReferencePointCoordinates]
-            self.dose = float(ds_sequence.TargetPrescriptionDose)
+            object.__setattr__(self, "name", ds_sequence.DoseReferenceDescription)
+            object.__setattr__(
+                self,
+                "coords",
+                [float(value) for value in ds_sequence.DoseReferencePointCoordinates],
+            )
+            object.__setattr__(self, "dose", float(ds_sequence.TargetPrescriptionDose))
 
-    class Dwell(object):
+    @dataclass(frozen=True)
+    class Dwell:
+        coords: list[float]
+        dwell_time: float
+        time_weight: float
+
         def __init__(self, control_sequence, d_time, d_weight):
-            self.coords = [float(x) for x in control_sequence.ControlPoint3DPosition]
-            self.time_weight = d_weight
-            self.dwell_time = d_time
+            object.__setattr__(
+                self,
+                "coords",
+                [float(value) for value in control_sequence.ControlPoint3DPosition],
+            )
+            object.__setattr__(self, "time_weight", d_weight)
+            object.__setattr__(self, "dwell_time", d_time)
 
 
-class PointComparison(object):
-    def __init__(self, point_name, omp_dose, pytg43_dose):
-        self.point_name = point_name
-        self.omp_dose = omp_dose
-        self.pytg43_dose = pytg43_dose
-        self.abs_difference = omp_dose-pytg43_dose
-        self.percentage_difference = 100*((self.omp_dose/self.pytg43_dose)-1)
+@dataclass(frozen=True)
+class PointComparison:
+    point_name: str
+    omp_dose: float
+    pytg43_dose: float
 
-if __name__ == '__main__':
-    print("Ran as script")
+    @property
+    def abs_difference(self) -> float:
+        return self.omp_dose - self.pytg43_dose
+
+    @property
+    def percentage_difference(self) -> float:
+        return 100 * ((self.omp_dose / self.pytg43_dose) - 1)

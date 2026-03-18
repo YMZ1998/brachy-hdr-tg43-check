@@ -11,5 +11,5 @@ class TestDBConnection(unittest.TestCase):
             omp_connect.connect_to_db()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

@@ -34,5 +34,5 @@ def write_file(data, filename="RTSTRUCT.dcm"):
         file.write(data)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     print("Database features removed. Use local RTPLAN files.")
