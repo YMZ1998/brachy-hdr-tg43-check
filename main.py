@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 from hdrpackage.parse_omp_rtplan import BrachyPlan, PointComparison
 from hdrpackage.pyTG43 import *
 import pydicom
@@ -50,13 +48,18 @@ def main():
     my_source_train = make_source_trains(my_plan)
     points_of_interest = my_plan.points
 
+    radialDose = make_radial_dose(
+        read_file(r'hdrpackage\\source_files\\v2r_ESTRO_radialDose.csv'))
+    anisotropyFunc = make_anisotropy_function(
+        read_file(r'hdrpackage\\source_files\\v2r_ESTRO_anisotropyFunction.csv'))
+
     output_table = []
     for poi in points_of_interest:
-        my_dose = calculate_dose(my_source_train, poi)
+        my_dose = calculate_dose(my_source_train, poi, anisotropyFunc, radialDose)
         point_compare = PointComparison(
             point_name=poi.name,
             omp_dose=poi.dose,
-            pytg43_dose=my_dose
+            pytg43_dose=my_dose,
         )
         output_table.append([
             poi.name,

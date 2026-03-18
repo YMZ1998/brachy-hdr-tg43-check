@@ -285,7 +285,7 @@ def make_source_trains(source_class):
     return source_train
 
 
-def calculate_dose(source_train_in, poi_in):
+def calculate_dose(source_train_in, poi_in, anisotropyFunc, radialDose):
     dose = 0
     my_point = PointPosition(
         poi_in.coords[0] / 10,  # lateral

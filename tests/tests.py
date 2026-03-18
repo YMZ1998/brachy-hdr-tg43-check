@@ -1,14 +1,21 @@
-from context import *
-import dicom
 import unittest
+
+import pydicom
+
+from context import *
+
+radialDose = make_radial_dose(
+    read_file(r'../hdrpackage\\source_files\\v2r_ESTRO_radialDose.csv'))
+anisotropyFunc = make_anisotropy_function(
+    read_file(r'../hdrpackage\\source_files\\v2r_ESTRO_anisotropyFunction.csv'))
 
 
 class BasicTestSetupClass(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Setup to run before all tests"""
-        test_data_path = r'tests\\data\\test_data.dcm'
-        ds_input = dicom.read_file(test_data_path)
+        test_data_path = r'data\\test_data.dcm'
+        ds_input = pydicom.read_file(test_data_path)
         cls.my_plan = BrachyPlan(ds_input)
 
         cls.patient_id_test = cls.my_plan.patient_id
@@ -66,18 +73,14 @@ class SourceTests(BasicTestSetupClass):
 
     def test_radial_dose_function(self):
         """Test radial dose value"""
-        radial_dose = make_radial_dose(
-            read_file(r'hdrpackage\\source_files\\v2r_ESTRO_radialDose.csv'))
         self.assertTrue(radialDose.gL[0], 1.3732)
 
         radial_dose_val = get_radial_dose(
-            radial_dose, self.my_source_train[0], self.my_point)
-        self.assertTrue(radial_dose_val,  1.00710588)
+            radialDose, self.my_source_train[0], self.my_point)
+        self.assertTrue(radial_dose_val, 1.00710588)
 
     def test_anisotropy_function(self):
         """Test anisotropy function value"""
-        anisotropy_function = make_radial_dose(
-            read_file(r'hdrpackage\\source_files\\v2r_ESTRO_radialDose.csv'))
         self.assertTrue(radialDose.gL[0], 1.3732)
 
         radial_dose_val = get_radial_dose(
@@ -108,9 +111,9 @@ class DoseTests(BasicTestSetupClass):
                                             omp_dose=poi.dose,
                                             pytg43_dose=my_dose)
             output_table.append([poi.name,  # display as pretty table
-                                poi.dose,
-                                my_dose,
-                                point_compare.percentage_difference])
+                                 poi.dose,
+                                 my_dose,
+                                 point_compare.percentage_difference])
 
         comparison_table = [['A1', 7.157785, 7.204668479752138, -0.650737502827492],
                             ['A2', 7.042215, 7.0942845357605915, -0.7339645808977835],
@@ -118,6 +121,7 @@ class DoseTests(BasicTestSetupClass):
                             ['ICRU', 3.510379, 3.364742911392422, 4.32829765728846]]
 
         self.assertTrue(output_table, comparison_table)
+
 
 if __name__ == '__main__':
     unittest.main()
