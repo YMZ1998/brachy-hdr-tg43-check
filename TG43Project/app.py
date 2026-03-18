@@ -1,17 +1,13 @@
 import sys
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-
-
-from mpl_toolkits.mplot3d import Axes3D
-
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtWidgets import QDialog, QApplication
-from PyQt5.QtCore import pyqtSlot
-from TG43_GUI_v1_9 import Ui_Dialog
-import TG43 as TG43
 
+import TG43 as TG43
+from TG43_GUI_v1_9 import Ui_Dialog
 
 # Display options for pandas
 pd.set_option('display.max_rows', None)
@@ -20,9 +16,9 @@ pd.set_option('display.width', None)
 pd.set_option('display.max_colwidth', None)
 pd.set_option('display.precision', 2)
 
-class AppWindow(QDialog):
 
-    source_list = []    # To store input sources
+class AppWindow(QDialog):
+    source_list = []  # To store input sources
     refpoint_list = []  # To store input reference points
 
     def __init__(self):
@@ -36,11 +32,11 @@ class AppWindow(QDialog):
         Method to find user's desired source info
         :return: x, y, z, activity, time
         """
-        x, y, z, activity, time = round(self.ui.source_x.value(), 1),\
-                                  round(self.ui.source_y.value(), 1),\
-                                  round(self.ui.source_z.value(), 1),\
-                                  round(self.ui.source_activity.value(), 1),\
-                                  round(self.ui.source_time.value(), 1)
+        x, y, z, activity, time = round(self.ui.source_x.value(), 1), \
+            round(self.ui.source_y.value(), 1), \
+            round(self.ui.source_z.value(), 1), \
+            round(self.ui.source_activity.value(), 1), \
+            round(self.ui.source_time.value(), 1)
         return x, y, z, activity, time
 
     def findSourceCode(self, source_str):
@@ -55,7 +51,6 @@ class AppWindow(QDialog):
         else:
             return None
 
-
     def addSource(self):
         """
         Method used to add and update the source to source list
@@ -64,9 +59,9 @@ class AppWindow(QDialog):
 
         combobox_contents = [self.ui.source_type.itemText(i) for i in range(self.ui.source_type.count())]
 
-        x, y, z = round(self.ui.source_x.value(), 1),\
-                  round(self.ui.source_y.value(), 1),\
-                  round(self.ui.source_z.value(), 1)
+        x, y, z = round(self.ui.source_x.value(), 1), \
+            round(self.ui.source_y.value(), 1), \
+            round(self.ui.source_z.value(), 1)
         activity = round(self.ui.source_activity.value(), 1)
         time = round(self.ui.source_time.value(), 1)
         type = str(self.ui.source_type.currentText())
@@ -99,15 +94,15 @@ class AppWindow(QDialog):
         :return:
         """
         _translate = QtCore.QCoreApplication.translate
-        x, y, z = round(self.ui.dose_ref_x.value(), 1),\
-                  round(self.ui.dose_ref_y.value(), 1),\
-                  round(self.ui.dose_ref_z.value(), 1)
+        x, y, z = round(self.ui.dose_ref_x.value(), 1), \
+            round(self.ui.dose_ref_y.value(), 1), \
+            round(self.ui.dose_ref_z.value(), 1)
         ref = TG43.DoseRefPoint(x, y, z)
         dose = ref.computeDose(self.source_list)
         total_dose = round(np.sum(dose), 2)
         mr_dose = ref.computeMeisbergerRatio(self.source_list)
         total_mr_dose = round(np.sum(mr_dose), 2)
-        percent_diff = 100 * (total_mr_dose - total_dose) / ((total_dose + total_mr_dose)/2)
+        percent_diff = 100 * (total_mr_dose - total_dose) / ((total_dose + total_mr_dose) / 2)
         percent_diff = round(percent_diff, 2)
         self.refpoint_list.append(ref)
         row_pos = self.ui.refpoint_table.rowCount()
@@ -159,10 +154,9 @@ class AppWindow(QDialog):
             self.ui.refpoint_table.setItem(row_pos, 2, QtWidgets.QTableWidgetItem(str(refpoint.z)))
             self.ui.refpoint_table.setItem(row_pos, 3, QtWidgets.QTableWidgetItem(str(dose)))
             self.ui.refpoint_table.setItem(row_pos, 4, QtWidgets.QTableWidgetItem(str(mr)))
-            percent_diff = 100 * (mr - dose)/((dose + mr)/2)
+            percent_diff = 100 * (mr - dose) / ((dose + mr) / 2)
             self.ui.refpoint_table.setItem(row_pos, 5, QtWidgets.QTableWidgetItem(str(round(percent_diff, 2))))
             row_pos += 1
-
 
     def clearRefPoint(self):
         """
@@ -215,7 +209,6 @@ class AppWindow(QDialog):
 
         plt.show()
 
-
     def printToExcel(self):
         """
         Doesn't actually  print to excel. I found printing the dose contributions to the terminal
@@ -231,14 +224,12 @@ class AppWindow(QDialog):
         TG43_df = pd.DataFrame(TG43_doselist, columns=column_names, index=idx_names)
         MR_df = pd.DataFrame(MR_doselist, columns=column_names, index=idx_names)
 
-
         # fig, ax = plt.subplots(1, 1)
         # table(ax, TG43_df)
 
-        print('\033[1m'+'Dose Contributions (all units in cGy):')
-        print('\033[0m'+f'TG-43 Dose Contributions:\n {TG43_df}\n')
+        print('\033[1m' + 'Dose Contributions (all units in cGy):')
+        print('\033[0m' + f'TG-43 Dose Contributions:\n {TG43_df}\n')
         print(f'Meisburger Ratio Dose Contributions:\n {MR_df}')
-
 
     def computeDoseList(self):
         """
@@ -252,8 +243,6 @@ class AppWindow(QDialog):
             MR_doselist.append(refpoint.computeMeisbergerRatio(self.source_list))
 
         return TG43_doselist, MR_doselist
-
-
 
 
 app = QApplication(sys.argv)
