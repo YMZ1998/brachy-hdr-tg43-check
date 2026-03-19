@@ -1,6 +1,6 @@
 import numpy as np
 
-import pyTG43
+from pyTG43 import pyTG43
 
 
 def test_fastinterp_clamps_to_bounds():

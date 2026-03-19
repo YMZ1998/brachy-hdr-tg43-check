@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pydicom
 
-import pyTG43
+from pyTG43 import pyTG43
 
 
 ROOT = Path(__file__).resolve().parents[1]
