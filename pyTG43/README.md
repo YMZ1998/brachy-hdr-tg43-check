@@ -34,6 +34,8 @@ All source specification data can be downloaded in spreadsheet form from the [ES
 
 Examples are provided for both HDR and PDR treatment plans, and can be run using `python examples.py`
 
+Point-dose comparison does not open plots by default; pass `show_plot=True` to `pyTG43.tpsComp(...)` if you want the radial dose plot.
+
 ```bash
 $ python examples.py
 ----------------------------------------
