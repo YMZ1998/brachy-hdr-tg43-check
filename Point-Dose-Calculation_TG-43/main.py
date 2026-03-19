@@ -2,7 +2,7 @@
 # from flask import request
 # from flask import jsonify
 from datetime import datetime
-from validation import validation
+from uitls import validation
 
 import pydicom
 

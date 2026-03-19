@@ -45,6 +45,8 @@ def main():
     print("\nLoading RTPlan from local file...")
     # rtplan_path = _prompt_for_rtplan_path()
     rtplan_path =r"D:\code\TG43\brachy-hdr-tg43-check\tests\data\rtplan.dcm"
+    # rtplan_path =r"D:\code\TG43\brachy-hdr-tg43-check\pyTG43\examples\HDR\RP.HDR.dcm"
+
     ds_input = pydicom.dcmread(rtplan_path)
     try:
         my_plan = BrachyPlan(ds_input)

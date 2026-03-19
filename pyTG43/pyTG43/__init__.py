@@ -1,12 +1,14 @@
+import math
+import os
 from glob import glob
+from multiprocessing import Pool
+
+import matplotlib.pyplot as plt
 import numpy as np
-import pydicom
+import xlrd
+from matplotlib.path import Path
 from pydicom.tag import Tag
 from terminaltables import SingleTable
-from matplotlib.path import Path
-import xlrd, math, os
-from multiprocessing import Pool
-import itertools
 
 
 def tpsComp(rp, rs, directory):
@@ -24,6 +26,9 @@ def tpsComp(rp, rs, directory):
     points = []
 
     source = Source(rp, directory)
+    source.plot_g()
+    # source.plot_F()
+    # source.plot_F_polar()
     plan = Plan(source, rp, rs)
 
     for p in rp[0x300A, 0x10]:
@@ -116,12 +121,17 @@ class Source(object):
 
         self.Sk = rp.SourceSequence[0].ReferenceAirKermaRate
 
-        fname = glob(directory + "/*" + rp.BrachyTreatmentType.lower() + "*.xls")[0]
+        # fname = glob(directory + "/*" + rp.BrachyTreatmentType.lower() + "*.xls")[0]
+        fname = glob(directory + "/*.xls")[0]
+        print("xls: ", fname)
         wb = xlrd.open_workbook(fname)
         sh = wb.sheets()[-1]
 
         self.L = sh.row(9)[2].value
         self.Delta = sh.row(4)[2].value
+
+        print("L: ", self.L)
+        print("Delta: ", self.Delta)
 
         col = 5
         while sh.row(10)[col].ctype == 2:
@@ -131,6 +141,7 @@ class Source(object):
         gi = np.ones((1, 2))
         Ft = []
         Fr = [r.value for r in sh.row(10)[5:col]]
+        print(Fr)
 
         for row in np.arange(11, sh.nrows):
             if sh.row(row)[1].ctype != 0:
@@ -140,6 +151,9 @@ class Source(object):
 
         Fi = Fi[1:, :]
         gi = gi[1:, :]
+
+        print("Fi:\n", Fi)
+        print("gi:\n", gi)
 
         self.Fi = bilinearinterp(Fr, Ft, Fi)
         self.gi = fastinterp(gi[:, 0], gi[:, 1])
@@ -172,6 +186,68 @@ class Source(object):
             )
         else:
             return self.gi(r)
+
+    def plot_g(self):
+        r = np.linspace(0.1, 10, 200)
+        g_vals = [self.g(x) for x in r]
+
+        plt.figure()
+        plt.plot(r, g_vals)
+        plt.xlabel("r (cm)")
+        plt.ylabel("g(r)")
+        plt.title("Radial Dose Function g(r)")
+        plt.grid()
+        plt.show()
+
+    def plot_F(self):
+
+        theta_deg = np.linspace(0, 180, 180, endpoint=False)
+        r = np.linspace(0.1, 10, 100)
+
+        R, T = np.meshgrid(r, theta_deg)
+        F_vals = np.zeros_like(R)
+
+        for i in range(R.shape[0]):
+            for j in range(R.shape[1]):
+                try:
+                    F_vals[i, j] = self.F(R[i, j], T[i, j])
+                except:
+                    F_vals[i, j] = np.nan
+
+        plt.figure()
+        plt.pcolormesh(R, np.radians(T), F_vals, shading='auto')
+        plt.colorbar(label="F(r, θ)")
+        plt.xlabel("r (cm)")
+        plt.ylabel("θ (rad)")
+        plt.title("Anisotropy Function F(r, θ)")
+        plt.show()
+
+    def plot_F_polar(self):
+        theta_deg = np.linspace(0, 180, 180, endpoint=False)
+
+        r_list = np.linspace(0.5, 5, 20)
+
+        plt.figure()
+        ax = plt.subplot(111, projection='polar')
+
+        for rr in r_list:
+            F_vals = []
+            for t_deg in theta_deg:
+                try:
+                    # 👉 如果 Fi 用的是“度”，直接传
+                    val = self.F(rr, t_deg)
+                except:
+                    # 👉 防止插值越界崩溃
+                    val = np.nan
+                F_vals.append(val)
+
+            # ⚠️ 画图需要“弧度”
+            theta_rad = np.radians(theta_deg)
+            ax.plot(theta_rad, F_vals, label=f"r={rr:.1f}")
+
+        plt.title("Anisotropy Function (Polar View)")
+        plt.legend(loc='upper right', bbox_to_anchor=(1.3, 1.1))
+        plt.show()
 
 
 class Dwell(object):
@@ -211,14 +287,14 @@ class Dwell(object):
             if i < len(app.coords) - 1:
                 q = app.oldcoords(app.coords)[i + 1] / 10
                 online = (
-                    np.round(euclidzip(p, self.middle) + euclidzip(q, self.middle), 4)
-                ) - np.round(euclidzip(p, q), 4)
+                             np.round(euclidzip(p, self.middle) + euclidzip(q, self.middle), 4)
+                         ) - np.round(euclidzip(p, q), 4)
                 if online < smallest:
                     smallest = (
-                        np.round(
-                            euclidzip(p, self.middle) + euclidzip(q, self.middle), 4
-                        )
-                    ) - np.round(euclidzip(p, q), 4)
+                                   np.round(
+                                       euclidzip(p, self.middle) + euclidzip(q, self.middle), 4
+                                   )
+                               ) - np.round(euclidzip(p, q), 4)
                     closest = [p, q]
 
         v = closest[0] - closest[1]
@@ -652,10 +728,10 @@ def bilinearinterp(xi, yi, values):
         i = bisect_left(xi, x) - 1
         j = bisect_left(yi, y) - 1
 
-        x1, x2 = xi[i : i + 2]
-        y1, y2 = yi[j : j + 2]
-        z11, z12 = values[j][i : i + 2]
-        z21, z22 = values[j + 1][i : i + 2]
+        x1, x2 = xi[i: i + 2]
+        y1, y2 = yi[j: j + 2]
+        z11, z12 = values[j][i: i + 2]
+        z21, z22 = values[j + 1][i: i + 2]
 
         return (
             z11 * (x2 - x) * (y2 - y)

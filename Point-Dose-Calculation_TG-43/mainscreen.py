@@ -10,8 +10,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.uic import loadUi
 
 from PandasModel import PandasModel
-from tg43.Extraction import Extraction
-from tg43.validation import validation
+from uitls import validation, Extraction
 
 
 class MainScreen(QMainWindow):

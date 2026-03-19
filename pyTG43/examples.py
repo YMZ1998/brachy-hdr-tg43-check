@@ -16,3 +16,11 @@ print('-'*40)
 print(' Eclipse (PDR)')
 print('-'*40)
 pyTG43.tpsComp(rp, rs, 'examples/PDR/')
+
+# rp = pydicom.dcmread('examples/rotated/RP.dcm')
+# rs = pydicom.dcmread('examples/rotated/RS.dcm')
+#
+# print('-'*40)
+# print(' Eclipse (rotated)')
+# print('-'*40)
+# pyTG43.tpsComp(rp, rs, 'examples/rotated/')
